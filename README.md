@@ -20,7 +20,7 @@ This was done by modifying the `ws` library as per [Addendum 1](#addendum-1) and
 
 The second step is to inject the captured TCP packets into the stream to simulate receiving them naturally but without the usual inconsistencies and delays.
 
-This was done by modifying the `ws` and `tiny-discord` library as per [Addendum 2](#addendum-2) and then running the script `discord-socket-test.js` to inject and benchmark the previously recorded data packets.
+This was done by modifying the `ws` and `tiny-discord` libraries as per [Addendum 2](#addendum-2) and then running the script `discord-socket-test.js` to inject and benchmark the previously recorded data packets.
 
 ## Results
 

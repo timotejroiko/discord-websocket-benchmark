@@ -3,6 +3,10 @@ const type = "messages"; // guilds | messages
 const encoding = "etf"; // json | etf
 const zlib = true; // true | false
 
+// adjust to get as many events as possible on a single shard
+const shardID = 0;
+const shardCount = 1;
+
 // ######################################################################################
 // ######################################################################################
 // ######################################################################################
@@ -38,7 +42,7 @@ try {
     }
 }
 
-const client = new Djs.Client({intents: type === "guilds" ? 1 : 512, shards: [2], shardCount: 4});
+const client = new Djs.Client({intents: type === "guilds" ? 1 : 512, shards: [shardID], shardCount});
 
 let count = 0;
 client.on("raw", () => {

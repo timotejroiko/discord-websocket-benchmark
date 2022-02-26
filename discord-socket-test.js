@@ -3,7 +3,7 @@ const token = "BOT TOKEN";
 const type = "messages"; // guilds | messages
 const encoding = "etf"; // json | etf
 const zlib = true; // true | false
-const lib = "djs"; // djs | eris | detritus | tiny
+const lib = "eris"; // djs | eris | detritus | tiny
 const extended = false; // extended test, emit 10x more events, incompatible with zlib
 
 // ###########################################################
@@ -79,7 +79,7 @@ function end() {
 }
 
 function testDjs() {
-    const client = new Djs.Client({intents: 0, shards: [0], shardCount: 10});
+    const client = new Djs.Client({intents: 0, shards: [0], shardCount: 999999});
     global.begin = () => {
         console.log("begin test");
         console.log(`processing ${testData.count} events`);
@@ -97,7 +97,7 @@ function testDjs() {
 }
 
 function testEris() {
-    const client = new Eris.Client(token, {intents:0, maxShards: 10, firstShardID: 0, lastShardID: 1, compress: zlib});
+    const client = new Eris.Client(token, {intents:0, maxShards: 999999, firstShardID: 0, lastShardID: 0, compress: zlib});
     global.begin = () => {
         console.log("begin test");
         console.log(`processing ${testData.count} events`);
@@ -115,7 +115,7 @@ function testEris() {
 }
 
 function testDetritus() {
-    const client = new Detritus.ShardClient(token, {gateway:{intents:0, compress: zlib, encoding, shardId: 0, shardCount: 10}});
+    const client = new Detritus.ShardClient(token, {gateway:{intents:0, compress: zlib, encoding, shardId: 0, shardCount: 999999}});
     global.begin = () => {
         console.log("begin test");
         console.log(`processing ${testData.count} events`);
@@ -133,7 +133,7 @@ function testDetritus() {
 }
 
 function testTiny() {
-    const client = new Tiny.InternalSharder({total: 10, ids:[0], options:{token, intents:0, compression: zlib ? 2 : 0, encoding}});
+    const client = new Tiny.InternalSharder({total: 999999, ids:[0], options:{token, intents:0, compression: zlib ? 2 : 0, encoding}});
     count = 2; // HELLO and READY are not emitted by "event"
     global.begin = () => {
         console.log("begin test");
