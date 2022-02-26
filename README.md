@@ -26,7 +26,7 @@ This was done by modifying the `ws` and `tiny-discord` libraries as per [Addendu
 
 The following results were obtained from injecting 2450 captured GUILD_CREATE events and 5000 captured MESSAGE_CREATE events, both captured separately for each different encoding and compression configurations, running on node.js v17.2.0 on an Intel(R) Core(TM) i5-7300HQ CPU @ 2.50GHz.
 
-The following results show the average number of packets per second that each library can process on a given configuration on a single shard.
+The following results show the average number of packets per second that each library can process on a given configuration on a single shard. This test is unfair in favor of `tiny-discord` because it does little to no additional data processing but it shows the differences in data processing performance between the other major libraries.
 
 |test/lib|discord.js|eris|detritus|tiny-discord|
 |-|-|-|-|-|
@@ -39,14 +39,18 @@ The following results show the average number of packets per second that each li
 |messages etf|17684|18003|7505|30621|
 |messages etf zlib|15562|14559|4005|26631|
 
-Results for extended mode, which tested 24k guilds and 50k messages by repeating previous packets 10 times, which enables futher v8 optimizations to kick in. zlib cannot be tested like this beause of its sequential nature but any performance differences should translate to it the same way.
+The following shows the same but with data processing completely disabled as per [Addendum 3](#addendum-3), focusing purely on websocket.
 
 |test/lib|discord.js|eris|detritus|tiny-discord|
 |-|-|-|-|-|
-|guilds ext json|1338|1581|683|3431|
-|guilds ext etf|716|822|501|2299|
-|messages ext json|58887|55622|12069|83925|
-|messages ext etf|24066|24025|10116|50590|
+|guilds json|2266|2273|2056|2479|
+|guilds json+zlib|2580|2411|1707|2601|
+|guilds etf|976|998|891|2147|
+|guilds etf+zlib|1088|1071|891|1943|
+|messages json|45729|43737|21153|56917|
+|messages json zlib|39616|32470|11788|39753|
+|messages etf|22944|21989|16574|31864|
+|messages etf zlib|18007|16695|8362|26631|
 
 Bonus: tech used by each library's internals:
 
@@ -56,34 +60,25 @@ Bonus: tech used by each library's internals:
 |etf|erlpack|erlpack|erlpack|custom (pure js)|
 |zlib|zlib-sync|zlib-sync|node:zlib (async)|node:zlib (sync)|
 
-Bonus: total data size of 2450 GUILD_CREATE events and 5000 MESSAGE_CREATE events for each configuration as sent by discord.
+## Notes and Findings
 
-|config|guilds|messages|
-|-|-|-|
-|json|218 MB|22 MB|
-|etf|203 MB|21 MB|
-|json+zlib|35 MB|6 MB|
-|etf+zlib|33 MB|5 MB|
-
-## Findings
-
-This benchmark was made initially to test my library `tiny-discord` against the other major players in the field, but it also demonstrates how much overhead can exist in standarized libraries that are used everywhere today such as `ws`.
+This benchmark was made initially to test my library `tiny-discord` against the other major players in the field, but it also demonstrates how much overhead can exist in data processing when creating each library's structures.
 
 Native packages such as `discord/erlpack` are not always faster than pure js alternatives. During isolated testing, `tiny-discord`'s pure js unpacker consistently outperformed discord's native erlpack library.
 
-`detritus` was surprisingly underwhelming in this test. Part of it can be attributed to its usage of asynchronous zlib, however the primary reasons remain to be investigated.
+`detritus` was surprisingly underwhelming in this test. Part of it can be attributed to its usage of asynchronous zlib, however more needs to be investigated.
 
 Both optional `ws` extensions are installed in this test. removing `bufferutil` made virtually no difference, removing `utf-8-validate` reduced performance by 2-3%.
 
-## Notes
+`erlpack` for some reason wont be removed from node_modules when uninstalled, so you have to manually delete it from there before you will be able to test json again in libraries that pick it up automatically like `discord.js` and `eris`.
 
-`erlpack` for some reason wont be removed from node_modules when uninstalled, so you have to manually delete it from there before you will be able to test json again.
-
-`ws` modifications must check each library for the existence of a custom `ws` version inside its own node_modules folder, and either modify that version, or delete it so the root version will be picked up correctly.
+`ws` modifications must check each library for the existence of a custom `ws` version inside its own node_modules folder, and either modify that version, or delete it so the root version will be picked up correctly. In this test, `detritus-client-socket` insisted in having its own `ws` instead of the root one, which i had to manually remove after every `npm` command.
 
 ## Closing
 
 This benchmark took a long time to get working correctly due to how complex it is but it was quite a fun ride.
+
+For a long time i believed that `ws` was slow but it turns out it was not the culprit. `ws` is more than fast enough, provided you dont use its built-in per-message deflate which thankfully discord does not use.
 
 A possible improvement would be to create a local websocket server instead of using a live discord connection as a dummy but i was too lazy to do that.
 
@@ -96,8 +91,8 @@ Modifications to the `ws` library in order to capture discord TCP stream data.
 ```diff
 // ws/lib/websocket.js:1237
 function socketOnData(chunk) {
-+ if (global.gather) { global.array.push([...chunk]); }
-  ...
++   if (global.gather) { global.array.push([...chunk]); }
+    ...
 }
 ```
 
@@ -108,8 +103,8 @@ Modifications to the `ws` and `tiny-discord` libraries in order to enable data i
 ```diff
 // ws/lib/websocket.js:438
 send(data, options, cb) {
-+ if(global.begin) { return; }
-  ...
++   if(global.begin) { return; }
+    ...
 }
 ```
 
@@ -143,6 +138,71 @@ _processFrame(opcode, message) {
 +       setImmediate(b);
 +       return;
 +   }
+    ...
+}
+```
+
+## Addendum 3
+
+Modifications to all libraries to disable any further data processing beyond the raw event.
+
+```diff
+// discord.js/src/client/websocket/WebSocketShard.js:278
+onMessage({ data }) {
+    let raw;
+    if (data instanceof ArrayBuffer) data = new Uint8Array(data);
+    if (zlib) {
+      const l = data.length;
+      const flush =
+        l >= 4 && data[l - 4] === 0x00 && data[l - 3] === 0x00 && data[l - 2] === 0xff && data[l - 1] === 0xff;
+
+      this.inflate.push(data, flush && zlib.Z_SYNC_FLUSH);
+      if (!flush) return;
+      raw = this.inflate.result;
+    } else {
+      raw = data;
+    }
+    let packet;
+    try {
+      packet = WebSocket.unpack(raw);
+    } catch (err) {
+      this.manager.client.emit(Events.SHARD_ERROR, err, this.id);
+      return;
+    }
+    this.manager.client.emit(Events.RAW, packet, this.id);
++   return;
+    ...
+}
+```
+
+```diff
+// eris/lib/gateway/Shard.js:375
+onPacket(packet) {
+    if(this.listeners("rawWS").length > 0 || this.client.listeners("rawWS").length) {
+        /**
+        * Fired when the shard receives a websocket packet
+        * @event Client#rawWS
+        * @prop {Object} packet The packet
+        * @prop {Number} id The ID of the shard
+        */
+        this.emit("rawWS", packet, this.id);
+    }
++   return;
+    ...
+}
+```
+
+```diff
+// detritus-client/lib/gateway/handler.js:47
+onPacket(packet) {
+    if (packet.op !== constants_1.GatewayOpCodes.DISPATCH) {
+        return;
+    }
+    const { d: data, t: name } = packet;
+    if (this.client.hasEventListener(constants_1.ClientEvents.RAW)) {
+        this.client.emit(constants_1.ClientEvents.RAW, packet);
+    }
++   return;
     ...
 }
 ```
