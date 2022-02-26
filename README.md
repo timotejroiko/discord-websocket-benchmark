@@ -2,7 +2,7 @@
 
 This test attempts to benchmark and compare low level websocket performance in various Discord libraries for nodejs.
 
-The goal is to measure the time taken for packets to go from a raw TCP stream to being emitted by each library's `raw` event, which includes websocket decoding, json/etf parsing and zlib inflating.
+The goal is to measure the time taken for packets to go from a raw TCP stream to being emitted by each library's `raw` event, which includes websocket decoding, json/etf parsing and zlib inflating. This test benchmarks a single websocket connection, aka a single shard.
 
 ## Methodology
 
@@ -26,7 +26,7 @@ This was done by modifying the `ws` and `tiny-discord` libraries as per [Addendu
 
 The following results were obtained from injecting 2450 captured GUILD_CREATE events and 5000 captured MESSAGE_CREATE events, both captured separately for each different encoding and compression configurations, running on node.js v17.2.0 on an Intel(R) Core(TM) i5-7300HQ CPU @ 2.50GHz.
 
-The following results show the average number of packets per second that each library can process on a given configuration.
+The following results show the average number of packets per second that each library can process on a given configuration on a single shard.
 
 |test/lib|discord.js|eris|detritus|tiny-discord|
 |-|-|-|-|-|
@@ -74,6 +74,12 @@ Native packages such as `discord/erlpack` are not always faster than pure js alt
 `detritus` was surprisingly underwhelming in this test. Part of it can be attributed to its usage of asynchronous zlib, however the primary reasons remain to be investigated.
 
 Both optional `ws` extensions are installed in this test. removing `bufferutil` made virtually no difference, removing `utf-8-validate` reduced performance by 2-3%.
+
+## Notes
+
+`erlpack` for some reason wont be removed from node_modules when uninstalled, so you have to manually delete it from there before you will be able to test json again.
+
+`ws` modifications must check each library for the existence of a custom `ws` version inside its own node_modules folder, and either modify that version, or delete it so the root version will be picked up correctly.
 
 ## Closing
 
