@@ -1,0 +1,10 @@
+node_modules
+package-lock.json
+guilds-etf-zlib.json
+guilds-etf.json
+guilds-zlib.json
+guilds.json
+messages-etf-zlib.json
+messages-etf.json
+messages-zlib.json
+messages.json

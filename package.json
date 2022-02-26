@@ -1,0 +1,21 @@
+{
+  "name": "discord-websocket-test",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bufferutil": "^4.0.6",
+    "detritus-client": "^0.16.3",
+    "discord.js": "^13.6.0",
+    "eris": "^0.16.1",
+    "erlpack": "github:discord/erlpack",
+    "tiny-discord": "github:timotejroiko/tiny-discord",
+    "utf-8-validate": "^5.0.8",
+    "zlib-sync": "^0.1.7"
+  }
+}
